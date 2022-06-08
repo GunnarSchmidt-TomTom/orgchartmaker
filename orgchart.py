@@ -33,7 +33,7 @@ def read_csv(csv_file):
                 employee_map[id] = employee
                 manager_map[employee]= manager_id
 
-    return { employee: employee_map[manager_id] for (employee, manager_id) in manager_map.items()}
+    return { employee: employee_map[manager_id] for (employee, manager_id) in manager_map.items() if manager_id in employee_map}
 
 def extract_org(reports):
     def extract_recursively(boss):
@@ -41,8 +41,8 @@ def extract_org(reports):
         for report, manager in reports.items():
             if manager == boss:
                 report_org = extract_recursively(report)
-                nreports = sum([x.nreports for x in report_org])
-                org[report.with_reports(nreports + len(report_org))] = report_org
+                nreports = sum([x.nreports for x in report_org]) + len(report_org)
+                org[report.with_reports(nreports)] = report_org
 
         return org
 
@@ -98,9 +98,19 @@ def find_managers_org(org, root_manager):
 
     return root_org[0]
 
+def only_managers(org):
+    def om(o):
+        return {employee : om(team) for employee, team in o.items() if employee.nreports > 0}
+    
+    return om(org)
+
+def identity(org):
+    return(org)
+
 def main(args):
     reports = read_csv(args.input)
     org = extract_org(reports)
+    org = args.filter_org(org)
 
     if args.root:
         specific_org = find_managers_org(org, args.root[0])
@@ -116,10 +126,15 @@ if __name__ == '__main__' :
     parser.add_argument('--root', dest='root', nargs = 1, required=False, default=None,
                         help="Specifies an element in the tree as root, only that subtree will be rendered")
 
+    parser.add_argument('--only-managers', dest='filter_org', action='store_const',
+                        const=only_managers, default=identity,
+                        help='will render the managers only')
+
 
     parser.add_argument('--ascii', dest='render', action='store_const',
                     const=render_ascii, default=render_pydot,
                     help='render an ascii tree')
+
     parser.add_argument('--pydot', dest='render', action='store_const',
                         const=render_pydot, default=render_pydot,
                         help='render into pydot image')
