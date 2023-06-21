@@ -84,6 +84,16 @@ def render_ascii(org):
     render_recursively(org)
     tree.show()
 
+def org_sizes(org):
+    def render_recursively(o, m = None):
+        for report, team in o.items():
+            if(report.nreports > 0):
+                print("{};{};{}".format(report.name, report.nreports, len(team)))
+                render_recursively(team, report)
+
+    print("manager;total org size;number of directs")
+    render_recursively(org)
+
 def find_managers_org(org, root_manager):
     def find_root(o):
         for m, t in o.items():
@@ -133,6 +143,10 @@ if __name__ == '__main__' :
 
     parser.add_argument('--ascii', dest='render', action='store_const',
                     const=render_ascii, default=render_pydot,
+                    help='render an ascii tree')
+
+    parser.add_argument('--orgsize', dest='render', action='store_const',
+                    const=org_sizes, default=render_pydot,
                     help='render an ascii tree')
 
     parser.add_argument('--pydot', dest='render', action='store_const',
