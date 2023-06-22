@@ -3,6 +3,7 @@ from curses.ascii import EM
 from dataclasses import dataclass, replace
 from multiprocessing import managers
 from traceback import print_tb
+import csv
 
 @dataclass(frozen=True)
 class Employee:
@@ -23,17 +24,24 @@ def read_csv(csv_file):
     manager_map = {} # map of every employee to its manager
     
     with open(csv_file, 'r') as f:
-        for line in f.readlines()[1:]:
-            (id, name, manager_id, title, _, _) = tuple([ x.strip() for x in line.split(';') ])
-            employee = Employee(id, name, manager_id, title)
+        reader = csv.reader(f, delimiter=';')
+        next(reader) # skip header row
+        for row in reader:
+            (id, name, manager_id, title, _, _) = tuple([ x.strip() for x in row ])
+            employee = employee_map.get(id, Employee(id, name, manager_id, title))
 
             if employee in manager_map.keys():
-                raise Exception("{} appears more than once".format(id))
+                # update existing employee object with new information
+                employee = employee.with_reports(None).with_reports(0)
+                employee = employee.with_reports(sum([x.nreports for x in manager_map[employee]]))
+                employee_map[id] = employee
             else:
                 employee_map[id] = employee
-                manager_map[employee]= manager_id
 
-    return { employee: employee_map[manager_id] for (employee, manager_id) in manager_map.items() if manager_id in employee_map}
+            manager_map[employee]= manager_id
+
+    return { employee: employee_map[manager_id] for (employee, manager_id) in manager_map.items() if manager_id in employee_map }
+
 
 def extract_org(reports):
     def extract_recursively(boss):
@@ -99,14 +107,18 @@ def find_managers_org(org, root_manager):
         for m, t in o.items():
             if m.id == root_manager or m.name == root_manager:
                 yield {m : t}
-            for result in find_root(t):
-                yield result
+            elif m.id > root_manager or m.name > root_manager:
+                break
+            else:
+                for result in find_root(t):
+                    yield result
 
     root_org = list(find_root(org))
     if len(root_org) != 1:
         raise Exception("Expected exactly one occurrence of {}, but found {}".format(root_manager, root_org))
 
     return root_org[0]
+
 
 def only_managers(org):
     def om(o):
@@ -147,7 +159,7 @@ if __name__ == '__main__' :
 
     parser.add_argument('--orgsize', dest='render', action='store_const',
                     const=org_sizes, default=render_pydot,
-                    help='render an ascii tree')
+                    help='outputs a CSV table showing the orgsize and number of direct reports')
 
     parser.add_argument('--pydot', dest='render', action='store_const',
                         const=render_pydot, default=render_pydot,
