@@ -117,7 +117,15 @@ def extract_org(reports):
     root_managers = set([ employee for (employee, manager) in reports.items() if manager == UNKNOWN_EMP])
     root_organizations =  { m : extract_recursively(m) for m in root_managers }
 
-    return {m.with_reports(sum([x.nreports for x in org])) : org for (m, org) in root_organizations.items()}
+    # Fix: Calculate total reports properly (direct reports + their subordinates)
+    def count_total_reports(org_dict):
+        total = 0
+        for emp, subordinates in org_dict.items():
+            total += 1  # Count this person
+            total += count_total_reports(subordinates)  # Count their reports
+        return total
+    
+    return {m.with_reports(count_total_reports(org)) : org for (m, org) in root_organizations.items()}
 
 def render_pydot(org):
     import pydot
@@ -166,18 +174,18 @@ def find_managers_org(org, root_manager):
     def find_root(o):
         for m, t in o.items():
             if m.id == root_manager or m.name == root_manager:
-                yield {m : t}
-            elif m.id > root_manager or m.name > root_manager:
-                break
+                return {m : t}
             else:
-                for result in find_root(t):
-                    yield result
+                result = find_root(t)
+                if result:
+                    return result
+        return None
 
-    root_org = list(find_root(org))
-    if len(root_org) != 1:
-        raise Exception("Expected exactly one occurrence of {}, but found {}".format(root_manager, root_org))
+    root_org = find_root(org)
+    if not root_org:
+        raise Exception("Manager '{}' not found in organization".format(root_manager))
 
-    return root_org[0]
+    return root_org
 
 
 def only_managers(org):

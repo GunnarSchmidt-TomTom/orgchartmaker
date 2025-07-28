@@ -1,0 +1,11 @@
+Unique Identifier;Name;Reports To;Line Detail 1;Line Detail 2;Line Detail 3;Organization Name
+chuck_norris;Chuck Norris;;CEO;Texas, USA;;Chuck Norris Industries
+alice_manager;Alice Johnson;chuck_norris;Engineering Manager;California, USA;;Engineering Dept
+bob_manager;Bob Smith;chuck_norris;Sales Manager;New York, USA;;Sales Dept
+alice_dev1;Carol White;alice_manager;Senior Developer;California, USA;;Engineering Dept
+alice_dev2;Dave Brown;alice_manager;Developer;California, USA;;Engineering Dept
+alice_dev3;Eve Davis;alice_manager;Junior Developer;California, USA;;Engineering Dept
+bob_sales1;Frank Wilson;bob_manager;Sales Lead;New York, USA;;Sales Dept
+bob_sales2;Grace Miller;bob_manager;Account Manager;New York, USA;;Sales Dept
+frank_rep1;Henry Taylor;bob_sales1;Sales Rep;New York, USA;;Sales Dept
+frank_rep2;Ivy Anderson;bob_sales1;Sales Rep;Florida, USA;;Sales Dept
