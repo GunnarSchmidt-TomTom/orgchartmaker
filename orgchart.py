@@ -13,7 +13,7 @@ class Employee:
     title: str
     nreports: int = None
 
-    def with_reports(self, nreports):
+    def with_nreports(self, nreports):
         return replace(self, nreports=nreports)
 
 UNKNOWN_EMP = Employee("", "", "", "")
@@ -104,28 +104,55 @@ def read_data_file(file_path):
         sys.exit(1)
 
 def extract_org(reports):
+    """
+    Converts flat manager-employee relationships into a hierarchical org structure.
+    
+    Args:
+        reports: Dict mapping {employee: manager} for all employees
+        
+    Returns:
+        Dict mapping {root_manager: org_tree} where org_tree is nested dicts of subordinates
+    """
+    
     def extract_recursively(boss):
+        """
+        Recursively builds org tree for a given manager.
+        
+        Args:
+            boss: Employee object to find direct reports for
+            
+        Returns:
+            Dict mapping {direct_report: their_org_tree}
+        """
         org = {}
+        
+        # Find all direct reports of this boss
         for report, manager in reports.items():
             if manager == boss:
+                # Recursively get this report's subordinates
                 report_org = extract_recursively(report)
+                
+                # Calculate total people under this report:
+                # sum of subordinates' counts + count of direct subordinates
                 nreports = sum([x.nreports for x in report_org]) + len(report_org)
-                org[report.with_reports(nreports)] = report_org
+                
+                # Add this report to boss's org with calculated count
+                org[report.with_nreports(nreports)] = report_org
 
         return org
 
-    root_managers = set([ employee for (employee, manager) in reports.items() if manager == UNKNOWN_EMP])
-    root_organizations =  { m : extract_recursively(m) for m in root_managers }
-
-    # Fix: Calculate total reports properly (direct reports + their subordinates)
-    def count_total_reports(org_dict):
-        total = 0
-        for emp, subordinates in org_dict.items():
-            total += 1  # Count this person
-            total += count_total_reports(subordinates)  # Count their reports
-        return total
+    # Step 1: Find all root managers (employees with no manager)
+    root_managers = set([employee for (employee, manager) in reports.items() if manager == UNKNOWN_EMP])
     
-    return {m.with_reports(count_total_reports(org)) : org for (m, org) in root_organizations.items()}
+    # Step 2: Build org tree for each root manager and calculate their total org size
+    result = {}
+    for m in root_managers:
+        org = extract_recursively(m)
+        # Calculate total org size: sum of direct reports' totals + count of direct reports
+        nreports = sum([x.nreports for x in org]) + len(org)
+        result[m.with_nreports(nreports)] = org
+    
+    return result
 
 def render_pydot(org):
     import pydot
@@ -214,13 +241,13 @@ if __name__ == '__main__' :
     parser = argparse.ArgumentParser(description='Derive org tree from a CSV or Excel file.')
     parser.add_argument('--input', dest='input', required=True, 
                         help='Path to input file (.csv, .xlsx, or .xls)')
+    
     parser.add_argument('--root', dest='root', nargs = 1, required=False, default=None,
                         help="Specifies an element in the tree as root, only that subtree will be rendered")
 
     parser.add_argument('--only-managers', dest='filter_org', action='store_const',
                         const=only_managers, default=identity,
                         help='will render the managers only')
-
 
     parser.add_argument('--ascii', dest='render', action='store_const',
                     const=render_ascii, default=render_pydot,
